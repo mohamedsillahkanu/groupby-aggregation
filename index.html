@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data GroupBy Aggregator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { margin: 0; padding: 20px; background-color: #ffffff; font-family: 'Oswald', Arial, sans-serif; color: #000000; font-weight: 500; }
+        .page-container { width: 100%; max-width: 1400px; margin: 0 auto; }
+        .page-header { background-color: #004080; color: #ffffff; padding: 25px 30px; text-align: center; margin-bottom: 15px; border-radius: 8px 8px 0 0; }
+        .logo-row { display: flex; justify-content: center; align-items: center; gap: 30px; margin-bottom: 15px; }
+        .logo-box { background: #ffffff; border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: center; }
+        .logo-box img { width: 100px; height: auto; border-radius: 6px; }
+        .page-header h3 { margin: 12px 0 5px; font-size: 14px; font-weight: 700; letter-spacing: 1px; color: #ffffff; }
+        .page-header .tagline { margin: 0; font-size: 10px; font-weight: 500; color: #ffffff; }
+        .page-header h1 { margin: 20px 0 10px; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: 1px; }
+        .page-header .subtitle { font-size: 14px; color: #ffffff; font-weight: 500; }
+        .content-card { border: 4px double #004080; border-radius: 12px; padding: 12px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); margin-bottom: 15px; }
+        .content-inner { padding: 25px; }
+        .upload-section { background: #f8f9fa; padding: 2rem; border-radius: 8px; border: 2px dashed #004080; text-align: center; margin: 1.5rem 0; transition: all 0.3s ease; }
+        .upload-section:hover { border-color: #0056b3; background: #e7f3ff; }
+        .upload-section.drag-over { background: #e7f3ff; border-color: #0056b3; border-style: solid; }
+        .upload-section h3 { color: #004080; margin-bottom: 1rem; font-size: 18px; font-weight: 700; }
+        .upload-section p { color: #000000; font-weight: 500; font-size: 14px; }
+        .file-input-wrapper { position: relative; display: inline-block; cursor: pointer; background: #004080; color: white; padding: 14px 24px; border-radius: 6px; border: 2px solid #004080; font-size: 14px; font-weight: 700; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Oswald', Arial, sans-serif; margin-top: 1rem; }
+        .file-input-wrapper:hover { background: #0056b3; border-color: #0056b3; }
+        .file-input-wrapper input[type="file"] { position: absolute; left: -9999px; }
+        .section-header { background-color: #004080; color: #ffffff; padding: 15px 20px; margin-bottom: 20px; border-radius: 6px; display: flex; align-items: center; gap: 15px; }
+        .section-icon { background: #ffffff; color: #004080; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+        .section-title { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin: 1.5rem 0; }
+        .stats-card { background: #f8f9fa; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); text-align: center; border: 2px solid #004080; transition: all 0.2s; }
+        .stats-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 64, 128, 0.2); }
+        .stats-card h4 { color: #666; font-size: 11px; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .stats-card .metric-value { font-size: 1.6rem; color: #004080; margin-bottom: 0.25rem; font-weight: 700; }
+        .stats-card p { color: #666; font-size: 11px; }
+        .btn { padding: 14px 24px; border: 2px solid #004080; border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Oswald', Arial, sans-serif; transition: all 0.2s; margin: 5px; }
+        .btn-primary { background: #004080; color: #ffffff; }
+        .btn-primary:hover { background: #0056b3; border-color: #0056b3; }
+        .btn-secondary { background: #ffffff; color: #004080; }
+        .btn-secondary:hover { background: #004080; color: #ffffff; }
+        .btn-gold { background: #ffc107; color: #000000; border-color: #ffc107; }
+        .btn-gold:hover { background: #e0a800; border-color: #e0a800; }
+        .btn-success { background: #28a745; color: #ffffff; border-color: #28a745; }
+        .btn-success:hover { background: #218838; border-color: #218838; }
+        .btn:disabled { background: #6c757d; border-color: #6c757d; color: #ffffff; opacity: 0.6; cursor: not-allowed; }
+        .alert { padding: 1rem; border-radius: 6px; margin: 1rem 0; font-weight: 500; }
+        .alert-success { background: #d4edda; border: 2px solid #28a745; color: #155724; }
+        .alert-error { background: #f8d7da; border: 2px solid #dc3545; color: #721c24; }
+        .alert-info { background: #e7f3ff; border: 2px solid #004080; color: #004080; }
+        .info-message { background: #e7f3ff; color: #004080; padding: 1rem; border-radius: 6px; border: 2px solid #004080; margin: 1rem 0; font-weight: 500; }
+        .hidden { display: none !important; }
+        .config-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border: 2px solid #004080; margin: 1rem 0; }
+        .config-card h4 { color: #004080; margin-bottom: 1rem; font-size: 16px; font-weight: 700; }
+        .column-chips { display: flex; flex-wrap: wrap; gap: 10px; padding: 1rem; border: 2px solid #004080; border-radius: 6px; background: #ffffff; max-height: 250px; overflow-y: auto; }
+        .column-chip { background: #ffffff; border: 2px solid #004080; padding: 8px 16px; border-radius: 25px; cursor: pointer; transition: all 0.2s ease; font-weight: 500; color: #004080; font-size: 13px; }
+        .column-chip:hover { background: #e7f3ff; }
+        .column-chip.selected { background: #004080; color: #ffffff; }
+        .column-chip.categorical { border-color: #6f42c1; color: #6f42c1; }
+        .column-chip.categorical:hover { background: #f3e8ff; }
+        .column-chip.categorical.selected { background: #6f42c1; color: #ffffff; border-color: #6f42c1; }
+        .column-chip.numeric { border-color: #28a745; color: #28a745; }
+        .column-chip.numeric:hover { background: #d4edda; }
+        .column-chip.numeric.selected { background: #28a745; color: #ffffff; border-color: #28a745; }
+        .agg-item { background: #ffffff; padding: 15px; margin-bottom: 12px; border-radius: 8px; border-left: 4px solid #28a745; border-top: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; }
+        .agg-header { margin-bottom: 10px; }
+        .agg-header strong { color: #28a745; font-size: 14px; }
+        .agg-functions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .agg-function { padding: 6px 14px; border: 2px solid #004080; border-radius: 20px; cursor: pointer; transition: all 0.2s ease; font-size: 12px; background: #ffffff; color: #004080; font-weight: 500; }
+        .agg-function:hover { background: #e7f3ff; }
+        .agg-function.selected { background: #004080; color: #ffffff; }
+        .table-container { max-height: 400px; overflow: auto; border: 2px solid #004080; border-radius: 6px; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .results-table th { background: #004080; color: #ffffff; padding: 0.75rem; text-align: left; font-weight: 700; position: sticky; top: 0; }
+        .results-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #ddd; }
+        .results-table tr:nth-child(even) { background: #f8f9fa; }
+        .results-table tr:hover { background: #e7f3ff; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 1.5rem 0; }
+        .feature-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border: 2px solid #004080; }
+        .feature-card h4 { color: #004080; margin-bottom: 1rem; font-size: 16px; font-weight: 700; text-transform: uppercase; }
+        .feature-card ul { color: #000000; line-height: 1.8; padding-left: 1.5rem; }
+        .feature-card li { margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; }
+        .feature-card strong { color: #004080; }
+        .page-footer { background-color: #004080; color: #ffffff; padding: 20px 30px; text-align: center; font-size: 13px; line-height: 1.7; font-weight: 500; border-radius: 0 0 8px 8px; }
+        .page-footer p { margin: 6px 0 0; font-size: 12px; color: #ffffff; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 10px; }
+        .badge-purple { background: #f3e8ff; color: #6f42c1; border: 1px solid #6f42c1; }
+        .badge-green { background: #d4edda; color: #28a745; border: 1px solid #28a745; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f8f9fa; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #004080; border-radius: 4px; }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .content-inner { padding: 15px; }
+            .page-header h1 { font-size: 20px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .btn { padding: 12px 20px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <div class="page-header">
+            <div class="logo-row">
+                <div class="logo-box">
+                    <img src="https://github.com/mohamedsillahkanu/gdp-dashboard-2/raw/6c7463b0d5c3be150aafae695a4bcbbd8aeb1499/ICF-SL.jpg" alt="ICF-SL Logo">
+                </div>
+            </div>
+            <h3>Informatics Consultancy Firm-Sierra Leone<br>(ICF-SL)</h3>
+            <p class="tagline"><em>Driving Data-Driven Solutions for Health and Development</em></p>
+            <h1>DATA GROUPBY AGGREGATOR</h1>
+            <p class="subtitle">Upload Data, Group by Categorical Columns, Aggregate Numeric Columns</p>
+        </div>
+
+        <div class="content-card">
+            <div class="content-inner">
+                <div id="alertContainer"></div>
+
+                <div class="upload-section" id="uploadSection">
+                    <h3>UPLOAD YOUR DATA FILE</h3>
+                    <p>Upload a CSV or Excel file to begin</p>
+                    <label class="file-input-wrapper">
+                        Choose File
+                        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+                    </label>
+                    <div id="fileInfo" style="margin-top: 15px; color: #28a745; font-weight: 700;"></div>
+                </div>
+
+                <div class="section-header">
+                    <span class="section-icon">?</span>
+                    <span class="section-title">HOW IT WORKS</span>
+                </div>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>Column Detection</h4>
+                        <ul>
+                            <li><strong>Categorical:</strong> Text or mixed columns</li>
+                            <li><strong>Numeric:</strong> Numbers + NA/blank only</li>
+                            <li><strong>Auto-detect:</strong> Smart column typing</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Aggregation Functions</h4>
+                        <ul>
+                            <li><strong>Sum, Mean, Median</strong></li>
+                            <li><strong>Min, Max, Count</strong></li>
+                            <li><strong>Std:</strong> Standard deviation</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Export Options</h4>
+                        <ul>
+                            <li><strong>Excel:</strong> .xlsx format</li>
+                            <li><strong>CSV:</strong> Comma-separated</li>
+                            <li><strong>Preview:</strong> View results first</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="configSection" class="hidden">
+                    <div class="section-header">
+                        <span class="section-icon">2</span>
+                        <span class="section-title">CONFIGURE GROUPBY & AGGREGATIONS</span>
+                    </div>
+
+                    <div class="config-card">
+                        <h4>1. Select GroupBy Columns <span class="badge badge-purple">Categorical/Text</span></h4>
+                        <div class="info-message">Choose categorical columns to group your data by.</div>
+                        <div class="column-chips" id="groupByColumns"></div>
+                        <div id="noCategoricalMsg" class="hidden" style="padding: 1rem; color: #dc3545; font-weight: 700;">No categorical columns found.</div>
+                    </div>
+
+                    <div class="config-card">
+                        <h4>2. Select Columns to Aggregate <span class="badge badge-green">Numeric Only</span></h4>
+                        <div class="info-message">Choose numeric columns to apply aggregation functions.</div>
+                        <div class="column-chips" id="aggColumns"></div>
+                        <div id="noNumericMsg" class="hidden" style="padding: 1rem; color: #dc3545; font-weight: 700;">No numeric columns found.</div>
+                    </div>
+
+                    <div id="aggConfig" class="config-card hidden">
+                        <h4>3. Select Aggregation Functions</h4>
+                        <div id="aggConfigInner"></div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 1.5rem;">
+                        <button class="btn btn-gold" id="processBtn" disabled>Process GroupBy</button>
+                        <button class="btn btn-secondary" id="resetBtn">Reset</button>
+                    </div>
+                </div>
+
+                <div id="resultsSection" class="hidden">
+                    <div class="section-header">
+                        <span class="section-icon">3</span>
+                        <span class="section-title">AGGREGATED RESULTS</span>
+                    </div>
+
+                    <div class="stats-grid" id="summaryStats"></div>
+
+                    <div class="config-card">
+                        <h4>Results Table</h4>
+                        <div class="table-container">
+                            <table class="results-table" id="resultsTable">
+                                <thead id="tableHead"></thead>
+                                <tbody id="tableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin: 2rem 0;">
+                        <button class="btn btn-success" id="exportExcelBtn">Export as Excel</button>
+                        <button class="btn btn-primary" id="exportCsvBtn">Export as CSV</button>
+                        <button class="btn btn-secondary" onclick="backToConfig()">Change Settings</button>
+                        <button class="btn btn-secondary" id="resetBtn2">Start Over</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-footer">
+            <p style="margin: 0; font-weight: 700;">National Malaria Control Programme</p>
+            <p>Ministry of Health and Sanitation, Sierra Leone</p>
+            <p style="font-size: 11px;">Medical Stores Compound, Freetown, Sierra Leone</p>
+            <p style="font-size: 10px;">© 2025 Informatics Consultancy Firm-Sierra Leone (ICF-SL)</p>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [], columns = [], numericColumns = [], categoricalColumns = [];
+        let groupBySelected = [], aggColumnsSelected = [], aggFunctionsMap = {}, resultData = [];
+
+        const aggFunctions = {
+            sum: (arr) => arr.reduce((a, b) => a + b, 0),
+            mean: (arr) => arr.reduce((a, b) => a + b, 0) / arr.length,
+            median: (arr) => { const sorted = [...arr].sort((a, b) => a - b); const mid = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; },
+            min: (arr) => Math.min(...arr),
+            max: (arr) => Math.max(...arr),
+            count: (arr) => arr.length,
+            std: (arr) => { const mean = arr.reduce((a, b) => a + b, 0) / arr.length; return Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length); }
+        };
+
+        function showAlert(message, type) {
+            type = type || 'info';
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(function() { container.innerHTML = ''; }, 5000);
+        }
+
+        function isNumericColumn(data, colName) {
+            let hasNumber = false;
+            for (let i = 0; i < data.length; i++) {
+                const val = data[i][colName];
+                if (val === null || val === undefined || val === '') continue;
+                if (typeof val === 'string') {
+                    const lower = val.toLowerCase().trim();
+                    if (lower === 'na' || lower === 'n/a' || lower === 'nan' || lower === 'null' || lower === '-' || lower === '.') continue;
+                    const trimmed = val.trim();
+                    if (trimmed === '') continue;
+                    const parsed = parseFloat(trimmed);
+                    if (!isNaN(parsed) && isFinite(parsed)) { hasNumber = true; continue; }
+                    return false;
+                }
+                if (typeof val === 'number' && !isNaN(val)) { hasNumber = true; continue; }
+                return false;
+            }
+            return hasNumber;
+        }
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        
+        fileInput.addEventListener('change', function(e) { if (e.target.files[0]) handleFileLoad(e.target.files[0]); });
+        uploadSection.addEventListener('dragover', function(e) { e.preventDefault(); uploadSection.classList.add('drag-over'); });
+        uploadSection.addEventListener('dragleave', function() { uploadSection.classList.remove('drag-over'); });
+        uploadSection.addEventListener('drop', function(e) { e.preventDefault(); uploadSection.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFileLoad(e.dataTransfer.files[0]); });
+
+        function handleFileLoad(file) {
+            document.getElementById('fileInfo').textContent = 'Loading ' + file.name + '...';
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            if (ext === 'csv') {
+                Papa.parse(file, { header: true, dynamicTyping: true, skipEmptyLines: true,
+                    complete: function(results) { processData(results.data, file.name); },
+                    error: function(error) { showAlert('Error: ' + error.message, 'error'); }
+                });
+            } else if (ext === 'xlsx' || ext === 'xls') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: null });
+                        processData(jsonData, file.name);
+                    } catch (error) { showAlert('Error: ' + error.message, 'error'); }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function processData(data, filename) {
+            rawData = data.filter(function(row) { return Object.values(row).some(function(val) { return val !== null && val !== ''; }); });
+            if (rawData.length === 0) { showAlert('No data found', 'error'); return; }
+            
+            columns = Object.keys(rawData[0]);
+            numericColumns = []; categoricalColumns = [];
+            columns.forEach(function(col) { 
+                if (isNumericColumn(rawData, col)) { numericColumns.push(col); } 
+                else { categoricalColumns.push(col); }
+            });
+            
+            document.getElementById('fileInfo').innerHTML = '<strong>' + filename + '</strong> loaded<br>' + rawData.length.toLocaleString() + ' rows x ' + columns.length + ' columns<br><span style="color:#6f42c1;">' + categoricalColumns.length + ' categorical</span> | <span style="color:#28a745;">' + numericColumns.length + ' numeric</span>';
+            setupColumnSelectors();
+            document.getElementById('configSection').classList.remove('hidden');
+            showAlert('File loaded! Configure settings below.', 'success');
+        }
+
+        function setupColumnSelectors() {
+            const groupByDiv = document.getElementById('groupByColumns');
+            const aggDiv = document.getElementById('aggColumns');
+            groupByDiv.innerHTML = ''; aggDiv.innerHTML = '';
+            
+            if (categoricalColumns.length === 0) { document.getElementById('noCategoricalMsg').classList.remove('hidden'); }
+            else { 
+                document.getElementById('noCategoricalMsg').classList.add('hidden'); 
+                categoricalColumns.forEach(function(col) { 
+                    const chip = document.createElement('div'); 
+                    chip.className = 'column-chip categorical'; 
+                    chip.textContent = col; 
+                    chip.onclick = function() { toggleGroupBy(col, chip); }; 
+                    groupByDiv.appendChild(chip); 
+                }); 
+            }
+            
+            if (numericColumns.length === 0) { document.getElementById('noNumericMsg').classList.remove('hidden'); }
+            else { 
+                document.getElementById('noNumericMsg').classList.add('hidden'); 
+                numericColumns.forEach(function(col) { 
+                    const chip = document.createElement('div'); 
+                    chip.className = 'column-chip numeric'; 
+                    chip.textContent = col; 
+                    chip.onclick = function() { toggleAggColumn(col, chip); }; 
+                    aggDiv.appendChild(chip); 
+                }); 
+            }
+        }
+
+        function toggleGroupBy(col, chip) { 
+            if (groupBySelected.includes(col)) { 
+                groupBySelected = groupBySelected.filter(function(c) { return c !== col; }); 
+                chip.classList.remove('selected'); 
+            } else { 
+                groupBySelected.push(col); 
+                chip.classList.add('selected'); 
+            } 
+            updateProcessButton(); 
+        }
+        
+        function toggleAggColumn(col, chip) { 
+            if (aggColumnsSelected.includes(col)) { 
+                aggColumnsSelected = aggColumnsSelected.filter(function(c) { return c !== col; }); 
+                chip.classList.remove('selected'); 
+                delete aggFunctionsMap[col]; 
+            } else { 
+                aggColumnsSelected.push(col); 
+                chip.classList.add('selected'); 
+                aggFunctionsMap[col] = ['sum']; 
+            } 
+            updateAggConfig(); 
+            updateProcessButton(); 
+        }
+
+        function updateAggConfig() {
+            const configDiv = document.getElementById('aggConfig');
+            const innerDiv = document.getElementById('aggConfigInner');
+            innerDiv.innerHTML = '';
+            if (aggColumnsSelected.length > 0) {
+                configDiv.classList.remove('hidden');
+                aggColumnsSelected.forEach(function(col) {
+                    const aggItem = document.createElement('div'); 
+                    aggItem.className = 'agg-item';
+                    aggItem.innerHTML = '<div class="agg-header"><strong>' + col + '</strong></div>';
+                    const funcsDiv = document.createElement('div'); 
+                    funcsDiv.className = 'agg-functions';
+                    Object.keys(aggFunctions).forEach(function(func) {
+                        const funcChip = document.createElement('div'); 
+                        funcChip.className = 'agg-function';
+                        if (aggFunctionsMap[col] && aggFunctionsMap[col].includes(func)) {
+                            funcChip.classList.add('selected');
+                        }
+                        funcChip.textContent = func; 
+                        funcChip.onclick = function() { toggleAggFunction(col, func, funcChip); }; 
+                        funcsDiv.appendChild(funcChip);
+                    });
+                    aggItem.appendChild(funcsDiv); 
+                    innerDiv.appendChild(aggItem);
+                });
+            } else { 
+                configDiv.classList.add('hidden'); 
+            }
+        }
+
+        function toggleAggFunction(col, func, chip) { 
+            if (!aggFunctionsMap[col]) aggFunctionsMap[col] = []; 
+            if (aggFunctionsMap[col].includes(func)) { 
+                aggFunctionsMap[col] = aggFunctionsMap[col].filter(function(f) { return f !== func; }); 
+                chip.classList.remove('selected'); 
+            } else { 
+                aggFunctionsMap[col].push(func); 
+                chip.classList.add('selected'); 
+            } 
+        }
+        
+        function updateProcessButton() { 
+            document.getElementById('processBtn').disabled = groupBySelected.length === 0 || aggColumnsSelected.length === 0; 
+        }
+
+        document.getElementById('processBtn').addEventListener('click', performGroupBy);
+        document.getElementById('resetBtn').addEventListener('click', resetAll);
+        document.getElementById('resetBtn2').addEventListener('click', resetAll);
+
+        function performGroupBy() {
+            const groups = {};
+            rawData.forEach(function(row) {
+                const key = groupBySelected.map(function(col) { return row[col]; }).join('|||');
+                if (!groups[key]) { 
+                    groups[key] = { 
+                        key: groupBySelected.reduce(function(obj, col) { obj[col] = row[col]; return obj; }, {}), 
+                        values: {} 
+                    }; 
+                    aggColumnsSelected.forEach(function(col) { groups[key].values[col] = []; }); 
+                }
+                aggColumnsSelected.forEach(function(col) { 
+                    let value = row[col]; 
+                    if (typeof value === 'string') value = parseFloat(value.trim()); 
+                    if (typeof value === 'number' && !isNaN(value)) groups[key].values[col].push(value); 
+                });
+            });
+            
+            resultData = [];
+            Object.values(groups).forEach(function(group) {
+                const result = Object.assign({}, group.key);
+                aggColumnsSelected.forEach(function(col) {
+                    const values = group.values[col];
+                    aggFunctionsMap[col].forEach(function(func) { 
+                        result[col + '_' + func] = values.length > 0 ? Math.round(aggFunctions[func](values) * 100) / 100 : null; 
+                    });
+                });
+                resultData.push(result);
+            });
+            displayResults();
+        }
+
+        function displayResults() {
+            document.getElementById('summaryStats').innerHTML = '<div class="stats-card"><h4>Groups</h4><div class="metric-value">' + resultData.length.toLocaleString() + '</div><p>Created</p></div><div class="stats-card"><h4>GroupBy</h4><div class="metric-value">' + groupBySelected.length + '</div><p>Columns</p></div><div class="stats-card"><h4>Aggregated</h4><div class="metric-value">' + aggColumnsSelected.length + '</div><p>Columns</p></div><div class="stats-card"><h4>Original</h4><div class="metric-value">' + rawData.length.toLocaleString() + '</div><p>Rows</p></div>';
+            
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+            thead.innerHTML = ''; 
+            tbody.innerHTML = '';
+            if (resultData.length > 0) {
+                let headerRow = '<tr>'; 
+                Object.keys(resultData[0]).forEach(function(col) { headerRow += '<th>' + col + '</th>'; }); 
+                thead.innerHTML = headerRow + '</tr>';
+                resultData.forEach(function(row) { 
+                    let tr = '<tr>'; 
+                    Object.values(row).forEach(function(val) { 
+                        if (val === null) {
+                            tr += '<td style="color:#999">-</td>';
+                        } else if (typeof val === 'number') {
+                            tr += '<td>' + val.toLocaleString() + '</td>';
+                        } else {
+                            tr += '<td>' + val + '</td>';
+                        }
+                    }); 
+                    tbody.innerHTML += tr + '</tr>'; 
+                });
+            }
+            document.getElementById('configSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.remove('hidden');
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+            showAlert('GroupBy complete!', 'success');
+        }
+
+        document.getElementById('exportCsvBtn').addEventListener('click', function() { 
+            const blob = new Blob([Papa.unparse(resultData)], { type: 'text/csv' }); 
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(blob); 
+            a.download = 'grouped_data.csv'; 
+            a.click(); 
+            showAlert('CSV downloaded!', 'success'); 
+        });
+        
+        document.getElementById('exportExcelBtn').addEventListener('click', function() { 
+            const ws = XLSX.utils.json_to_sheet(resultData); 
+            const wb = XLSX.utils.book_new(); 
+            XLSX.utils.book_append_sheet(wb, ws, 'Data'); 
+            XLSX.writeFile(wb, 'grouped_data.xlsx'); 
+            showAlert('Excel downloaded!', 'success'); 
+        });
+        
+        function backToConfig() { 
+            document.getElementById('resultsSection').classList.add('hidden'); 
+            document.getElementById('configSection').classList.remove('hidden'); 
+        }
+        
+        function resetAll() { 
+            groupBySelected = []; 
+            aggColumnsSelected = []; 
+            aggFunctionsMap = {}; 
+            resultData = []; 
+            rawData = []; 
+            document.getElementById('configSection').classList.add('hidden'); 
+            document.getElementById('resultsSection').classList.add('hidden'); 
+            document.getElementById('fileInfo').textContent = ''; 
+            document.getElementById('alertContainer').innerHTML = ''; 
+            fileInput.value = ''; 
+            document.querySelectorAll('.column-chip').forEach(function(chip) { chip.classList.remove('selected'); }); 
+        }
+    </script>
+</body>
+</html>
